@@ -1,0 +1,195 @@
+*smol.txt*  Neovim support for SMOL                          *smol* *nvim-smol*
+
+Neovim support for SMOL (Sensor Modelling and Ontology Language), the language
+verified by lockpick (https://github.com/sievericcardo/lockpick).
+
+Features:
+  - lockpick-lsp diagnostics
+  - bundled tree-sitter grammar (highlighting, folds, indentation, locals,
+    text objects)
+  - Vim syntax fallback
+  - :SmolCheck quickfix integration
+  - filetype detection, comments and indentation for `.smol` files
+
+==============================================================================
+CONTENTS                                                     *smol-contents*
+
+  1. Requirements ................................ |smol-requirements|
+  2. Setup ....................................... |smol-setup|
+  3. Commands .................................... |smol-commands|
+  4. Configuration ............................... |smol-config|
+  5. Language server ............................. |smol-lsp|
+  6. Tree-sitter ................................. |smol-treesitter|
+  7. Health ...................................... |smol-health|
+  8. License ..................................... |smol-license|
+
+==============================================================================
+1. REQUIREMENTS                                         *smol-requirements*
+
+  - Neovim 0.10 or newer.
+  - `lockpick-lsp` (and `lockpick` for :SmolCheck). Build them from a lockpick
+    checkout: >
+      cargo build --release
+      cp target/release/lockpick target/release/lockpick-lsp ~/.local/bin/
+<
+  - A C compiler (`cc`, `clang`, or `gcc`) to build the tree-sitter parser.
+    This is optional; Vim syntax highlighting works without it.
+
+==============================================================================
+2. SETUP                                                       *smol-setup*
+
+Calling setup() is optional. Without it, the plugin uses defaults and starts
+the language server and parser when they are available. >
+  require('smol').setup({
+    lsp = {
+      cmd = { 'lockpick-lsp' },      -- nil = auto-detect
+      source_dir = '~/src/lockpick',
+    },
+    keymaps = {
+      check = '<leader>sc',
+      check_buffer = '<leader>sB',
+    },
+  })
+<
+The plugin can be lazy-loaded on the `smol` filetype.
+
+==============================================================================
+3. COMMANDS                                                   *smol-commands*
+
+:SmolCheck                                                          *:SmolCheck*
+  Run `lockpick check` for the current project and fill the quickfix list.
+  The manifest is `check.manifest`, then `smol.toml` found in the project
+  root, then the current file as a fallback. With [!] the quickfix window is
+  opened.
+
+:SmolCheckBuffer [!]                                         *:SmolCheckBuffer*
+  Run the project check and show only diagnostics for the current buffer in
+  the location list.
+
+:SmolCheckCancel                                            *:SmolCheckCancel*
+  Cancel a running check.
+
+:SmolRestart                                                  *:SmolRestart*
+  Stop and restart lockpick-lsp, re-attaching all open SMOL buffers.
+
+:SmolStop                                                        *:SmolStop*
+  Stop lockpick-lsp.
+
+:SmolInfo                                                        *:SmolInfo*
+  Print LSP client, binary and tree-sitter status.
+
+:SmolHealth                                                    *:SmolHealth*
+  Open :checkhealth smol.
+
+:SmolInstallParser [!]                                 *:SmolInstallParser*
+  Compile the bundled tree-sitter grammar into
+  `stdpath('data')/site/parser/smol.so`. With [!], rebuild even when a parser
+  is already available.
+
+:SmolTreesitter                                            *:SmolTreesitter*
+  Toggle tree-sitter highlighting for the current buffer.
+
+:SmolBuildLsp [dir]                                        *:SmolBuildLsp*
+  Run `cargo build --release --bin lockpick-lsp` in {dir}, `lsp.source_dir`,
+  or `$LOCKPICK_DIR`, then restart the server.
+
+==============================================================================
+4. CONFIGURATION                                               *smol-config*
+
+The following keys are accepted by `require('smol').setup()`.
+
+lsp~
+  enabled       (boolean, default true)
+  auto_start    (boolean, default true)
+  cmd           (string[]|fun(root):string[], default nil = auto-detect)
+                Candidate order: $LOCKPICK_LSP, `lockpick-lsp` on PATH,
+                `<root>/target/{release,debug}/lockpick-lsp`,
+                `lsp.source_dir`/`$LOCKPICK_DIR` target directories.
+  source_dir    (string) lockpick checkout used by :SmolBuildLsp.
+  root_markers  (string[], default { 'smol.toml', '.git' })
+  capabilities  (table|fun) merged into the default client capabilities.
+  settings      (table) LSP settings.
+  init_options  (table) LSP initialize options.
+  on_attach     (fun(client, bufnr)) called after the client attaches.
+  notify_missing (boolean, default true) warn once when the binary is missing.
+
+treesitter~
+  enabled       (boolean, default true)
+  auto_start    (boolean, default true) start if a parser is available.
+  cc            (string) compiler for :SmolInstallParser.
+  folds         (boolean, default false) use the folds query with
+                `foldmethod=expr`; the previous fold settings are restored
+                when tree-sitter is stopped.
+
+syntax~
+  enabled       (boolean, default true) use `syntax/smol.vim` as a fallback.
+
+check~
+  cmd           (string[]|fun(root):string[], default nil = auto-detect)
+  manifest      (string) explicit smol.toml path.
+  extra_args    (string[]) extra arguments passed to `lockpick check`.
+  open_quickfix (boolean, default false)
+  timeout       (integer, default 120000 ms)
+
+keymaps~
+  check         (string|false, default false) map to :SmolCheck.
+  check_buffer  (string|false, default false) map to :SmolCheckBuffer.
+
+Environmental overrides: `$LOCKPICK_LSP`, `$LOCKPICK`, `$LOCKPICK_DIR`.
+
+==============================================================================
+5. LANGUAGE SERVER                                               *smol-lsp*
+
+lockpick-lsp speaks LSP 3.17 over stdio, uses full text synchronization, and
+publishes `textDocument/publishDiagnostics`. It provides diagnostics only (no
+completion, hover, or definitions yet). Errors and warnings carry lockpick's
+`E####`/`W####` codes and source ranges.
+
+Diagnostics are refreshed on open, change, and save. The server verifies the
+whole workspace: a `smol.toml` manifest in the workspace root takes precedence;
+otherwise it verifies open documents plus every `.smol` file under the root.
+
+==============================================================================
+6. TREE-SITTER                                             *smol-treesitter*
+
+The grammar lives in `tree-sitter-smol/` and ships with a generated `parser.c`.
+Install it with :SmolInstallParser, or use nvim-treesitter instead.
+
+Queries in `queries/smol/`:
+  - highlights.scm
+  - folds.scm
+  - indents.scm
+  - locals.scm
+  - textobjects.scm
+
+Neovim uses highlights automatically. Set `treesitter.folds = true` to enable
+tree-sitter folds. The indents, locals and textobjects queries are used by
+nvim-treesitter and nvim-treesitter-textobjects when installed.
+
+Regenerate the parser after changing `tree-sitter-smol/grammar.js`: >
+  make generate
+<
+The test suite compiles the parser in a temporary directory: >
+  make test
+<
+Note: type/class names are expected to begin with an uppercase letter, and
+variables/fields/methods with a lowercase letter. This removes the classic
+declaration-vs-assignment ambiguity and matches the SMOL corpus.
+
+==============================================================================
+7. HEALTH                                                     *smol-health*
+
+Run :checkhealth smol (or :SmolHealth). It reports:
+  - Neovim version and filetype detection
+  - registered commands
+  - lockpick-lsp path and attached clients
+  - workspace manifest
+  - lockpick CLI version
+  - tree-sitter parser, queries and C compiler
+
+==============================================================================
+8. LICENSE                                                     *smol-license*
+
+MIT License. Copyright (c) 2026 nvim-smol contributors.
+
+ vim:tw=78:ts=8:noet:ft=help:norl:
