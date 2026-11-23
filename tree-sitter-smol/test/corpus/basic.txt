@@ -1,0 +1,416 @@
+==================
+Empty class
+==================
+
+abstract class Thing() end
+
+---
+
+(source_file
+  (class_declaration
+    (type_identifier)
+    (field_parameter_list)))
+
+==================
+Class with fields and methods
+==================
+
+class Patient extends Person (hidden String id, domain Int age, context Ward ward)
+    links "a <http://example.org/Patient> ;";
+    links (this.age > 0) "a <http://example.org/Adult> .";
+    classifies "<ast:Patient>";
+    retrieves "SELECT ?p WHERE { ?p a ast:Patient . }";
+
+    Int visits = 0;
+    ExplList<Person> relatives = null;
+
+    abstract Unit diagnose()
+
+    override Unit admit(Int days) adapts Patient
+        this.visits = this.visits + days;
+    end
+end
+
+---
+
+(source_file
+  (class_declaration
+    (type_identifier)
+    (type
+      (type_identifier))
+    (field_parameter_list
+      (field_parameter
+        (type
+          (primitive_type))
+        (identifier))
+      (field_parameter
+        (type
+          (primitive_type))
+        (identifier))
+      (field_parameter
+        (type
+          (type_identifier))
+        (identifier)))
+    (class_body
+      (models_clause
+        (string))
+      (models_clause
+        (binary_expression
+          (field_expression
+            (this_expression)
+            (identifier))
+          (number
+            (integer)))
+        (string))
+      (classifies_clause
+        (string))
+      (retrieves_clause
+        (string))
+      (member_declaration
+        (type
+          (primitive_type))
+        (identifier)
+        (number
+          (integer)))
+      (member_declaration
+        (type
+          (generic_type
+            (primitive_type)
+            (type
+              (type_identifier))))
+        (identifier)
+        (null_literal))
+      (abstract_method_declaration
+        (type
+          (primitive_type))
+        (identifier)
+        (parameter_list))
+      (member_declaration
+        (type
+          (primitive_type))
+        (identifier)
+        (parameter_list
+          (parameter
+            (type
+              (primitive_type))
+            (identifier)))
+        (adapts_clause
+          (type_identifier))
+        (block
+          (assignment_statement
+            (field_expression
+              (this_expression)
+              (identifier))
+            (binary_expression
+              (field_expression
+                (this_expression)
+                (identifier))
+              (identifier))))))))
+
+==================
+Types
+==================
+
+class Types (
+    Int i,
+    Double d,
+    String s,
+    Boolean b,
+    Bool alias,
+    Unit u,
+    List<Person> people,
+    ExplList<Person> exposed,
+    Nullable<Person> maybe,
+    FMO[in Double speed, out Double position] fmu,
+    Outer<Inner<Deep>> nested
+) end
+
+---
+
+(source_file
+  (class_declaration
+    (type_identifier)
+    (field_parameter_list
+      (field_parameter
+        (type
+          (primitive_type))
+        (identifier))
+      (field_parameter
+        (type
+          (primitive_type))
+        (identifier))
+      (field_parameter
+        (type
+          (primitive_type))
+        (identifier))
+      (field_parameter
+        (type
+          (primitive_type))
+        (identifier))
+      (field_parameter
+        (type
+          (primitive_type))
+        (identifier))
+      (field_parameter
+        (type
+          (primitive_type))
+        (identifier))
+      (field_parameter
+        (type
+          (generic_type
+            (primitive_type)
+            (type
+              (type_identifier))))
+        (identifier))
+      (field_parameter
+        (type
+          (generic_type
+            (primitive_type)
+            (type
+              (type_identifier))))
+        (identifier))
+      (field_parameter
+        (type
+          (generic_type
+            (primitive_type)
+            (type
+              (type_identifier))))
+        (identifier))
+      (field_parameter
+        (type
+          (fmo_type
+            (fmo_port
+              (type
+                (primitive_type))
+              (identifier))
+            (fmo_port
+              (type
+                (primitive_type))
+              (identifier))))
+        (identifier))
+      (field_parameter
+        (type
+          (generic_type
+            (type_identifier)
+            (type
+              (generic_type
+                (type_identifier)
+                (type
+                  (type_identifier))))))
+        (identifier)))))
+
+==================
+Statements and expressions
+==================
+
+main
+    List<Person> people = access("SELECT * WHERE { ?s ?p ?o . }", SPARQL, "x");
+    List<Person> built = construct("CONSTRUCT { ?s ?p ?o } WHERE { ?s ?p ?o . }");
+    Person found = member("<ast:Person>");
+    Boolean valid = validate("a <http://example.org/Person> .");
+    FMO[in Double x, out Double y] model = simulate("model.fmu", start = 1.0);
+    Person classified = classify(found);
+    Person adapted = adapt(found);
+    Double number = (-1.0 + 2.0) * 3.0 / 4.0 % 2.0;
+    Boolean logic = !(number >= 1.0) || (number < 2.0 && number != 3.0);
+    String text = "hello" ++ " " ++ "world";
+    if logic then
+        print(text);
+    else
+        skip;
+    end
+    while number > 0 decreases number do
+        number = number - 1.0;
+    end
+    found.diagnose();
+    found.ward.port("id");
+    destroy(found);
+    breakpoint;
+    return;
+end
+
+---
+
+(source_file
+  (main_declaration
+    (block
+      (declaration_statement
+        (type
+          (generic_type
+            (primitive_type)
+            (type
+              (type_identifier))))
+        (identifier)
+        (access_expression
+          (argument_list
+            (string)
+            (sparql_mode)
+            (string))))
+      (declaration_statement
+        (type
+          (generic_type
+            (primitive_type)
+            (type
+              (type_identifier))))
+        (identifier)
+        (construct_expression
+          (argument_list
+            (string))))
+      (declaration_statement
+        (type
+          (type_identifier))
+        (identifier)
+        (member_expression
+          (argument_list
+            (string))))
+      (declaration_statement
+        (type
+          (primitive_type))
+        (identifier)
+        (validate_expression
+          (argument_list
+            (string))))
+      (declaration_statement
+        (type
+          (fmo_type
+            (fmo_port
+              (type
+                (primitive_type))
+              (identifier))
+            (fmo_port
+              (type
+                (primitive_type))
+              (identifier))))
+        (identifier)
+        (simulate_expression
+          (string)
+          (named_argument
+            (identifier)
+            (number
+              (float)))))
+      (declaration_statement
+        (type
+          (type_identifier))
+        (identifier)
+        (classify_expression
+          (argument_list
+            (identifier))))
+      (declaration_statement
+        (type
+          (type_identifier))
+        (identifier)
+        (adapt_expression
+          (argument_list
+            (identifier))))
+      (declaration_statement
+        (type
+          (primitive_type))
+        (identifier)
+        (binary_expression
+          (binary_expression
+            (binary_expression
+              (parenthesized_expression
+                (binary_expression
+                  (unary_expression
+                    (number
+                      (float)))
+                  (number
+                    (float))))
+              (number
+                (float)))
+            (number
+              (float)))
+          (number
+            (float))))
+      (declaration_statement
+        (type
+          (primitive_type))
+        (identifier)
+        (binary_expression
+          (unary_expression
+            (parenthesized_expression
+              (binary_expression
+                (identifier)
+                (number
+                  (float)))))
+          (parenthesized_expression
+            (binary_expression
+              (binary_expression
+                (identifier)
+                (number
+                  (float)))
+              (binary_expression
+                (identifier)
+                (number
+                  (float)))))))
+      (declaration_statement
+        (type
+          (primitive_type))
+        (identifier)
+        (binary_expression
+          (binary_expression
+            (string)
+            (string))
+          (string)))
+      (if_statement
+        (identifier)
+        (block
+          (print_statement
+            (argument_list
+              (identifier))))
+        (block
+          (skip_statement)))
+      (while_statement
+        (binary_expression
+          (identifier)
+          (number
+            (integer)))
+        (identifier)
+        (block
+          (assignment_statement
+            (identifier)
+            (binary_expression
+              (identifier)
+              (number
+                (float))))))
+      (expression_statement
+        (method_invocation
+          (identifier)
+          (identifier)
+          (argument_list)))
+      (expression_statement
+        (method_invocation
+          (field_expression
+            (identifier)
+            (identifier))
+          (identifier)
+          (argument_list
+            (string))))
+      (destroy_statement
+        (argument_list
+          (identifier)))
+      (breakpoint_statement)
+      (return_statement))))
+
+==================
+Comments and contracts
+==================
+
+// line comment
+/* block comment */
+/*@ requires x > 0 @*/
+/*@ ensures result >= 0 @*/
+/*@ pure @*/
+class Annotated() end
+
+---
+
+(source_file
+  (line_comment)
+  (block_comment)
+  (block_comment)
+  (block_comment)
+  (block_comment)
+  (class_declaration
+    (type_identifier)
+    (field_parameter_list)))

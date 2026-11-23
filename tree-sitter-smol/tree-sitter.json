@@ -1,0 +1,28 @@
+{
+  "$schema": "https://tree-sitter.github.io/tree-sitter/assets/schemas/config.schema.json",
+  "grammars": [
+    {
+      "name": "smol",
+      "camelcase": "Smol",
+      "title": "SMOL",
+      "scope": "source.smol",
+      "path": ".",
+      "file-types": ["smol"],
+      "injection-regex": "^smol$",
+      "highlights": "queries/highlights.scm"
+    }
+  ],
+  "metadata": {
+    "version": "0.1.0",
+    "license": "BSD-3-Clause",
+    "description": "Tree-sitter grammar for SMOL (Sensor Modelling and Ontology Language)",
+    "authors": [
+      {
+        "name": "nvim-smol contributors"
+      }
+    ],
+    "links": {
+      "repository": "https://github.com/sievericcardo/nvim-smol"
+    }
+  }
+}
