@@ -1,0 +1,6 @@
+// Fixture with a verifier-visible error: a `List` field on a domain class.
+class BadModel (List<Thing> things)
+    Unit unused()
+        Int i = 0;
+    end
+end
