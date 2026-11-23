@@ -1,0 +1,79 @@
+// Kitchen-sink SMOL fixture used by the test suite.
+/* A plain block comment. */
+/*@ requires 0 <= x && x < 10 @*/
+/*@ ensures result >= 0 @*/
+/*@ decreases 10 - x @*/
+
+abstract class Shape (hidden String id, domain Int sides, context Shape parent)
+    links "a <http://example.org/Shape> ; <http://example.org/hasId> %id .";
+    links (this.sides > 0) "a <http://example.org/Polygon> .";
+    classifies "<ast:Shape>";
+    retrieves "SELECT DISTINCT ?shape WHERE { ?shape a ast:Shape . }";
+
+    Int counter = 0;
+    ExplList<Shape> parts = null;
+    Nullable<Shape> maybe = null;
+    FMO[in Double speed, out Double position] fmu = null;
+
+    abstract Unit draw()
+
+    abstract Unit resize(Int factor) adapts Shape
+
+    Unit describe()
+        if this.sides > 0 then
+            print("sides " ++ intToString(this.sides));
+        else
+            print("unknown");
+        end
+    end
+
+    override Unit move(Int dx, Int dy)
+        while this.counter < 10 decreases 10 - this.counter do
+            this.counter = this.counter + 1;
+        end
+        Boolean ok = dx >= 0 && dy >= 0;
+        if !ok || this.counter == 0 then
+            skip;
+        else
+            this.counter = this.counter % 2;
+        end
+    end
+
+    Unit report(Shape other)
+        super(1);
+        this.fmu.tick(1.0);
+        Double speed = this.fmu.port("speed");
+        destroy(other);
+        return;
+    end
+end
+
+class Sensor extends Shape (Double value)
+    classifies "<ast:Sensor>";
+    override Unit draw()
+        print("drawing sensor " ++ doubleToString(this.value));
+    end
+end
+
+class Quad (Bool left, Bool right)
+end
+
+main
+    Shape shape = new Sensor(1.0);
+    List<Shape> shapes = new List<Shape>(shape, null);
+    List<Shape> found = access("SELECT * WHERE { ?s ?p ?o . }", SPARQL, "shape");
+    List<Shape> made = construct("CONSTRUCT { ?s ?p ?o } WHERE { ?s ?p ?o . }");
+    Boolean member = member("<ast:Sensor>");
+    Boolean valid = validate("a <http://example.org/Sensor> .");
+    FMO[in Double speed, out Double position] sim = simulate("model.fmu", m = 1.0);
+    Shape classified = classify(shape);
+    Shape adapted = adapt(shape);
+    Double result = (-1.0 + 2.0) * 3.0 / 4.0;
+    shape.describe();
+    shape.move(1, 2);
+    shape = shape.parent;
+    destroy(shape);
+    print("done");
+    skip;
+    breakpoint;
+end
