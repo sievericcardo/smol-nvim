@@ -1,0 +1,10 @@
+*.swp
+*.swo
+.DS_Store
+parser/
+tree-sitter-smol/node_modules/
+tree-sitter-smol/target/
+tree-sitter-smol/bindings/
+tree-sitter-smol/*.log
+tree-sitter-smol/.cache/
+
