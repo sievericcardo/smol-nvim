@@ -4,6 +4,7 @@
 :SmolCheckCancel	smol.txt	/*:SmolCheckCancel*
 :SmolHealth	smol.txt	/*:SmolHealth*
 :SmolInfo	smol.txt	/*:SmolInfo*
+:SmolInstallLsp	smol.txt	/*:SmolInstallLsp*
 :SmolInstallParser	smol.txt	/*:SmolInstallParser*
 :SmolRestart	smol.txt	/*:SmolRestart*
 :SmolStop	smol.txt	/*:SmolStop*

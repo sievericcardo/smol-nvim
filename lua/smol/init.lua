@@ -36,6 +36,12 @@ function M.install_parser(opts)
   return require('smol.treesitter').install(opts)
 end
 
+---Install lockpick-lsp and lockpick from Git.
+---@param opts table|nil
+function M.install_lockpick(opts)
+  return require('smol.lsp').install(opts)
+end
+
 ---@return table
 function M.get_config()
   return config.get()

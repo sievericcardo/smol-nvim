@@ -27,7 +27,6 @@ if [[ -z "${SMOL_TEST_LOCKPICK:-}" ]]; then
   SMOL_TEST_LOCKPICK="$(
     maybe_bin \
       "$ROOT/../lockpick/target/release/lockpick" \
-      "$HOME/Documents/GitHub/lockpick/target/release/lockpick" \
       "$(command -v lockpick 2>/dev/null || true)" || true
   )"
   export SMOL_TEST_LOCKPICK
@@ -37,7 +36,6 @@ if [[ -z "${SMOL_TEST_LSP:-}" ]]; then
   SMOL_TEST_LSP="$(
     maybe_bin \
       "$ROOT/../lockpick/target/release/lockpick-lsp" \
-      "$HOME/Documents/GitHub/lockpick/target/release/lockpick-lsp" \
       "$(command -v lockpick-lsp 2>/dev/null || true)" || true
   )"
   export SMOL_TEST_LSP

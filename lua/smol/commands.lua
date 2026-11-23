@@ -46,9 +46,16 @@ function M.setup()
     require('smol.treesitter').toggle(0)
   end, { desc = 'SMOL: toggle tree-sitter highlighting for this buffer' })
 
+  cmd('SmolInstallLsp', function(args)
+    require('smol.lsp').install({
+      force = args.bang,
+      url = args.args ~= '' and args.args or nil,
+    })
+  end, { bang = true, nargs = '?', desc = 'SMOL: cargo install lockpick-lsp + lockpick from Git' })
+
   cmd('SmolBuildLsp', function(args)
     require('smol.lsp').build({ source_dir = args.args ~= '' and args.args or nil })
-  end, { nargs = '?', complete = 'dir', desc = 'SMOL: cargo build lockpick-lsp from a checkout' })
+  end, { nargs = '?', complete = 'dir', desc = 'SMOL: cargo build lockpick-lsp from a local checkout' })
 
   cmd('SmolInfo', function()
     local lines = {}

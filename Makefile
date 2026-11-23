@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 TS ?= npx --yes tree-sitter-cli@0.24.7
 NVIM ?= nvim
-LOCKPICK_DIR ?= $(HOME)/Documents/GitHub/lockpick
+LOCKPICK_DIR ?=
 
 .PHONY: test ts-test generate parser clean-corpus corpus install-dev
 
@@ -25,8 +25,10 @@ parser:
 
 ## Parse every .smol file in the lockpick example corpus; fails on ERROR nodes.
 corpus:
-	@if [[ ! -d "$(LOCKPICK_DIR)/examples" ]]; then \
-		echo "set LOCKPICK_DIR to a lockpick checkout"; exit 1; \
+	@if [[ -z "$(LOCKPICK_DIR)" || ! -d "$(LOCKPICK_DIR)/examples" ]]; then \
+		echo "set LOCKPICK_DIR to a lockpick checkout"; \
+		echo "  git clone --depth 1 https://github.com/sievericcardo/lockpick /tmp/lockpick"; \
+		echo "  make corpus LOCKPICK_DIR=/tmp/lockpick"; exit 1; \
 	fi
 	@failed=0; \
 	for file in $$(find "$(LOCKPICK_DIR)/examples" -name '*.smol' ! -path '*tosemServices-old*'); do \

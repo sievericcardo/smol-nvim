@@ -3,7 +3,9 @@ local M = {}
 ---@class SmolLspConfig
 ---@field enabled boolean
 ---@field cmd string[]|fun(root: string|nil): string[]|nil
----@field source_dir string|nil        Directory of the lockpick checkout (for :SmolBuildLsp)
+---@field source_dir string|nil        Directory of a local lockpick checkout (for :SmolBuildLsp)
+---@field install_dir string|nil      Where :SmolInstallLsp installs binaries (default: stdpath('data')/smol)
+---@field git { url: string, branch: string|nil, tag: string|nil, rev: string|nil }
 ---@field root_markers string[]
 ---@field capabilities table|nil
 ---@field settings table
@@ -38,6 +40,13 @@ M.defaults = {
     enabled = true,
     cmd = nil,
     source_dir = nil,
+    install_dir = nil,
+    git = {
+      url = 'https://github.com/sievericcardo/lockpick',
+      branch = nil,
+      tag = nil,
+      rev = nil,
+    },
     root_markers = { 'smol.toml', '.git' },
     capabilities = nil,
     settings = {},
@@ -89,6 +98,9 @@ function M.setup(opts)
   end
   if current.lsp.source_dir then
     current.lsp.source_dir = vim.fn.expand(current.lsp.source_dir)
+  end
+  if current.lsp.install_dir then
+    current.lsp.install_dir = vim.fn.expand(current.lsp.install_dir)
   end
   if current.check.timeout and current.check.timeout <= 0 then
     current.check.timeout = M.defaults.check.timeout

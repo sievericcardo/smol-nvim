@@ -24,6 +24,10 @@ local function command_candidates(root)
   if vim.env.LOCKPICK and vim.env.LOCKPICK ~= '' then
     table.insert(candidates, vim.env.LOCKPICK)
   end
+  local installed = require('smol.lsp').installed_bin('lockpick')
+  if installed then
+    table.insert(candidates, installed)
+  end
   local on_path = vim.fn.exepath('lockpick')
   if on_path ~= '' then
     table.insert(candidates, on_path)

@@ -7,6 +7,29 @@ M.name = 'lockpick'
 
 local warned = {}
 
+---@return string
+local function exe_ext()
+  return vim.fn.has('win32') == 1 and '.exe' or ''
+end
+
+---Directory used by `:SmolInstallLsp` (a cargo --root layout).
+---@return string
+function M.install_dir()
+  local cfg = config.get().lsp
+  return cfg.install_dir or (vim.fn.stdpath('data') .. '/smol')
+end
+
+---Path of a binary installed by `:SmolInstallLsp`, if executable.
+---@param name string
+---@return string|nil
+function M.installed_bin(name)
+  local path = M.install_dir() .. '/bin/' .. name .. exe_ext()
+  if util.is_executable(path) then
+    return path
+  end
+  return nil
+end
+
 ---@param root string|nil
 ---@return string[]
 local function command_candidates(root)
@@ -19,6 +42,11 @@ local function command_candidates(root)
 
   if vim.env.LOCKPICK_LSP and vim.env.LOCKPICK_LSP ~= '' then
     table.insert(candidates, vim.env.LOCKPICK_LSP)
+  end
+
+  local installed = M.installed_bin('lockpick-lsp')
+  if installed then
+    table.insert(candidates, installed)
   end
 
   local on_path = vim.fn.exepath('lockpick-lsp')
@@ -85,8 +113,9 @@ local function notify_missing(root)
   end
   warned[key] = true
   util.notify(
-    'lockpick-lsp not found. Install lockpick, put `lockpick-lsp` on your PATH, '
-      .. 'set `lsp.cmd`, or use :SmolBuildLsp. Run :checkhealth smol for details.',
+    'lockpick-lsp not found. Run :SmolInstallLsp to build it from GitHub, '
+      .. 'put `lockpick-lsp` on your PATH, set `lsp.cmd`, or use :SmolBuildLsp '
+      .. 'with a local checkout. Run :checkhealth smol for details.',
     vim.log.levels.WARN
   )
   return true
@@ -204,6 +233,13 @@ function M.info()
     lines,
     'lockpick-lsp: ' .. (cmd and table.concat(cmd, ' ') or 'not found')
   )
+  table.insert(lines, 'install dir: ' .. M.install_dir())
+  table.insert(
+    lines,
+    'installed lsp: ' .. tostring(M.installed_bin('lockpick-lsp'))
+  )
+  table.insert(lines, 'installed cli: ' .. tostring(M.installed_bin('lockpick')))
+  table.insert(lines, 'git: ' .. tostring(config.get().lsp.git.url))
   local clients = M.clients()
   if #clients == 0 then
     table.insert(lines, 'clients: none attached')
@@ -221,6 +257,94 @@ function M.info()
     end
   end
   return lines
+end
+
+---Build and install `lockpick-lsp` and `lockpick` from a Git repository.
+---
+---This is the recommended setup on a fresh machine: it needs only Rust, CMake
+---and libclang, downloads the sources from GitHub, and installs both binaries
+---into `lsp.install_dir` (by default `stdpath('data')/smol/bin`).
+---
+---@param opts { force?: boolean, url?: string, on_done?: fun(ok: boolean, output: string) }|nil
+---@return boolean started
+function M.install(opts)
+  opts = opts or {}
+  local cfg = config.get().lsp
+  local dir = M.install_dir()
+  local installed = M.installed_bin('lockpick-lsp')
+
+  if installed and not opts.force then
+    util.notify(
+      'lockpick-lsp already installed at '
+        .. installed
+        .. ' (use :SmolInstallLsp! to reinstall)'
+    )
+    return false
+  end
+
+  if vim.fn.executable('cargo') ~= 1 then
+    util.notify(
+      '`cargo` not found. Install Rust from https://rustup.rs first, then see '
+        .. 'the lockpick system dependencies (CMake and libclang).',
+      vim.log.levels.ERROR
+    )
+    return false
+  end
+
+  local git = cfg.git or {}
+  local url = opts.url or git.url
+  if not url or url == '' then
+    util.notify('no lockpick Git URL configured', vim.log.levels.ERROR)
+    return false
+  end
+
+  local args = {
+    'cargo',
+    'install',
+    '--git',
+    url,
+    '--locked',
+    '--root',
+    dir,
+    '--bin',
+    'lockpick-lsp',
+    '--bin',
+    'lockpick',
+  }
+  if opts.force or M.installed_bin('lockpick') then
+    table.insert(args, '--force')
+  end
+  if git.rev then
+    table.insert(args, '--rev')
+    table.insert(args, git.rev)
+  elseif git.tag then
+    table.insert(args, '--tag')
+    table.insert(args, git.tag)
+  elseif git.branch then
+    table.insert(args, '--branch')
+    table.insert(args, git.branch)
+  end
+
+  util.notify('installing lockpick from ' .. url .. ' (this can take a while)…')
+  vim.system(args, { text = true }, function(result)
+    vim.schedule(function()
+      local output = (result.stdout or '') .. (result.stderr or '')
+      local ok = result.code == 0
+      if ok then
+        local binary = M.installed_bin('lockpick-lsp')
+        util.notify('installed lockpick-lsp at ' .. tostring(binary))
+        M.restart(0)
+      else
+        util.notify('lockpick installation failed', vim.log.levels.ERROR)
+      end
+      if opts.on_done then
+        opts.on_done(ok, output)
+      elseif not ok then
+        vim.notify(output, vim.log.levels.ERROR)
+      end
+    end)
+  end)
+  return true
 end
 
 ---Build `lockpick-lsp` from a local lockpick checkout.
@@ -253,6 +377,9 @@ function M.build(opts)
       local ok = result.code == 0
       if ok then
         local binary = source .. (opts.release == false and '/target/debug/' or '/target/release/') .. 'lockpick-lsp'
+        -- Use the checkout we just built for this session, even when a
+        -- plugin-managed binary is also present.
+        config.get().lsp.cmd = { binary }
         util.notify('built ' .. binary)
         M.restart(0)
       else

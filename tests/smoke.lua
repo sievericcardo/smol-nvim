@@ -28,11 +28,91 @@ eq(vim.bo.shiftwidth, 4, 'shiftwidth')
 check(vim.fn.exists(':SmolCheck') == 2, ':SmolCheck exists')
 check(vim.fn.exists(':SmolCheckBuffer') == 2, ':SmolCheckBuffer exists')
 check(vim.fn.exists(':SmolInstallParser') == 2, ':SmolInstallParser exists')
+check(vim.fn.exists(':SmolInstallLsp') == 2, ':SmolInstallLsp exists')
 check(vim.fn.exists(':SmolInfo') == 2, ':SmolInfo exists')
 check(vim.b.current_syntax == 'smol', 'Vim syntax file loaded')
 
--- ── Root detection ──────────────────────────────────────────────────────────
+-- ── GitHub-installed lockpick binaries ──────────────────────────────────────
 local config = require('smol.config')
+local lspmod = require('smol.lsp')
+eq(config.get().lsp.git.url, 'https://github.com/sievericcardo/lockpick', 'default lockpick Git URL')
+local install_dir = vim.fn.fnamemodify(vim.fn.tempname(), ':h') .. '/smol-install'
+vim.fn.mkdir(install_dir .. '/bin', 'p')
+local fake_lsp = install_dir .. '/bin/lockpick-lsp'
+vim.fn.writefile({ '#!/bin/sh', 'exit 0' }, fake_lsp)
+vim.fn.setfperm(fake_lsp, 'rwxr-xr-x')
+
+local previous_install_dir = config.get().lsp.install_dir
+local previous_cmd = config.get().lsp.cmd
+local previous_env = vim.env.LOCKPICK_LSP
+config.get().lsp.install_dir = install_dir
+config.get().lsp.cmd = nil
+vim.env.LOCKPICK_LSP = nil
+eq(lspmod.installed_bin('lockpick-lsp'), fake_lsp, 'plugin-managed binary discovered')
+local resolved = lspmod.resolve_cmd(nil)
+eq(resolved and resolved[1], fake_lsp, 'resolve_cmd prefers the installed binary')
+config.get().lsp.install_dir = previous_install_dir
+config.get().lsp.cmd = previous_cmd
+vim.env.LOCKPICK_LSP = previous_env
+vim.fn.delete(install_dir, 'rf')
+
+-- Exercise :SmolInstallLsp end to end with a fake cargo (no network).
+if vim.fn.has('unix') == 1 then
+  local fake = vim.fn.fnamemodify(vim.fn.tempname(), ':h') .. '/fake-cargo'
+  local root = fake .. '/root'
+  vim.fn.mkdir(fake .. '/bin', 'p')
+  local args_file = fake .. '/args.txt'
+  local script = table.concat({
+    '#!/bin/sh',
+    'printf "%s\\n" "$@" > ' .. args_file,
+    'root=""',
+    'prev=""',
+    'for arg in "$@"; do',
+    '  if [ "$prev" = "--root" ]; then root="$arg"; fi',
+    '  prev="$arg"',
+    'done',
+    'mkdir -p "$root/bin"',
+    'printf "#!/bin/sh\\nexit 0\\n" > "$root/bin/lockpick-lsp"',
+    'printf "#!/bin/sh\\nexit 0\\n" > "$root/bin/lockpick"',
+    'chmod +x "$root/bin/lockpick-lsp" "$root/bin/lockpick"',
+  }, '\n')
+  vim.fn.writefile(vim.split(script, '\n'), fake .. '/bin/cargo')
+  vim.fn.setfperm(fake .. '/bin/cargo', 'rwxr-xr-x')
+
+  local old_path = vim.env.PATH
+  local old_install = config.get().lsp.install_dir
+  local old_enabled = config.get().lsp.enabled
+  vim.env.PATH = fake .. '/bin:' .. old_path
+  config.get().lsp.install_dir = root
+  config.get().lsp.enabled = false -- avoid starting the fake server
+  local done = false
+  lspmod.install({
+    force = true,
+    on_done = function(ok)
+      done = ok
+    end,
+  })
+  local installed = vim.wait(10000, function()
+    return done
+  end, 100)
+  check(installed, ':SmolInstallLsp installs binaries from Git')
+  if installed then
+    local recorded = table.concat(vim.fn.readfile(args_file), ' ')
+    check(recorded:find('install', 1, true) ~= nil, 'install uses cargo install')
+    check(
+      recorded:find('https://github.com/sievericcardo/lockpick', 1, true) ~= nil,
+      'install uses the default Git URL'
+    )
+    check(recorded:find('--bin lockpick-lsp', 1, true) ~= nil, 'install installs lockpick-lsp')
+    check(recorded:find('--bin lockpick', 1, true) ~= nil, 'install installs lockpick')
+  end
+  vim.env.PATH = old_path
+  config.get().lsp.install_dir = old_install
+  config.get().lsp.enabled = old_enabled
+  vim.fn.delete(fake, 'rf')
+end
+
+-- ── Root detection ──────────────────────────────────────────────────────────
 local root_dir = config.root_dir(0)
 check(root_dir ~= nil, 'root_dir finds a project root')
 

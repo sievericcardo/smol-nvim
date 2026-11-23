@@ -71,14 +71,27 @@ function M.check()
       vim.health.info(info)
     end
   else
+    local cfg = require('smol.config').get().lsp
+    local install_dir = lsp.install_dir()
     vim.health.error('lockpick-lsp not found', {
-      'Install lockpick and put `lockpick-lsp` on your PATH:',
-      '  cargo build --release --bin lockpick-lsp',
-      '  cp target/release/lockpick-lsp ~/.local/bin/',
-      'Or point the plugin at it:',
-      '  require("smol").setup({ lsp = { cmd = { "/path/to/lockpick-lsp" } } })',
-      'Or build from a checkout: :SmolBuildLsp /path/to/lockpick',
+      'Install it from GitHub (recommended):',
+      '  :SmolInstallLsp',
+      'Equivalent command line:',
+      '  cargo install --git ' .. cfg.git.url .. ' --bin lockpick-lsp --bin lockpick --locked --root ' .. install_dir,
+      'Or put `lockpick-lsp` on your PATH, set `lsp.cmd`, or use :SmolBuildLsp with a local checkout.',
     })
+  end
+
+  vim.health.info('install dir: ' .. lsp.install_dir())
+  local installed_lsp = lsp.installed_bin('lockpick-lsp')
+  local installed_cli = lsp.installed_bin('lockpick')
+  if installed_lsp then
+    vim.health.ok('installed by nvim-smol: ' .. installed_lsp)
+  else
+    vim.health.info('no plugin-managed lockpick-lsp (use :SmolInstallLsp)')
+  end
+  if installed_cli then
+    vim.health.info('plugin-managed lockpick CLI: ' .. installed_cli)
   end
 
   local clients = lsp.clients()
@@ -111,7 +124,9 @@ function M.check()
       vim.health.info(version)
     end
   else
-    vim.health.warn('lockpick CLI not found; `:SmolCheck` will not work (LSP diagnostics still do)')
+    vim.health.warn('lockpick CLI not found; `:SmolCheck` will not work (LSP diagnostics still do)', {
+      'Run :SmolInstallLsp to install both `lockpick-lsp` and `lockpick`.',
+    })
   end
 
   -- tree-sitter ─────────────────────────────────────────────────────────────

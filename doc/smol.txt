@@ -27,11 +27,11 @@ CONTENTS                                                     *smol-contents*
 1. REQUIREMENTS                                         *smol-requirements*
 
   - Neovim 0.10 or newer.
-  - `lockpick-lsp` (and `lockpick` for :SmolCheck). Build them from a lockpick
-    checkout: >
-      cargo build --release
-      cp target/release/lockpick target/release/lockpick-lsp ~/.local/bin/
+  - `lockpick-lsp` (and `lockpick` for :SmolCheck). Install them from GitHub
+    with :SmolInstallLsp (requires Rust, CMake and libclang): >
+      :SmolInstallLsp
 <
+    or put `lockpick-lsp` on your PATH.
   - A C compiler (`cc`, `clang`, or `gcc`) to build the tree-sitter parser.
     This is optional; Vim syntax highlighting works without it.
 
@@ -52,6 +52,13 @@ the language server and parser when they are available. >
   })
 <
 The plugin can be lazy-loaded on the `smol` filetype.
+
+On a fresh machine, after installing this plugin from GitHub, run: >
+  :SmolInstallLsp      " cargo install lockpick-lsp + lockpick from GitHub
+  :SmolInstallParser   " compile the bundled tree-sitter grammar
+  :checkhealth smol
+<
+No local lockpick checkout is required.
 
 ==============================================================================
 3. COMMANDS                                                   *smol-commands*
@@ -89,9 +96,17 @@ The plugin can be lazy-loaded on the `smol` filetype.
 :SmolTreesitter                                            *:SmolTreesitter*
   Toggle tree-sitter highlighting for the current buffer.
 
-:SmolBuildLsp [dir]                                        *:SmolBuildLsp*
-  Run `cargo build --release --bin lockpick-lsp` in {dir}, `lsp.source_dir`,
-  or `$LOCKPICK_DIR`, then restart the server.
+:SmolInstallLsp [url]                                    *:SmolInstallLsp*
+  Install `lockpick-lsp` and `lockpick` with
+  `cargo install --git <url>` into `lsp.install_dir` (default
+  `stdpath('data')/smol`). With [!], reinstall even if a binary already
+  exists. The default URL is https://github.com/sievericcardo/lockpick and
+  can be overridden by the optional argument or `lsp.git.url`.
+
+:SmolBuildLsp [dir]                                      *:SmolBuildLsp*
+  Run `cargo build --release --bin lockpick-lsp` in a local lockpick
+  checkout ({dir}, `lsp.source_dir`, or `$LOCKPICK_DIR`), then restart the
+  server. Optional alternative to :SmolInstallLsp for development.
 
 ==============================================================================
 4. CONFIGURATION                                               *smol-config*
@@ -102,10 +117,15 @@ lsp~
   enabled       (boolean, default true)
   auto_start    (boolean, default true)
   cmd           (string[]|fun(root):string[], default nil = auto-detect)
-                Candidate order: $LOCKPICK_LSP, `lockpick-lsp` on PATH,
+                Candidate order: $LOCKPICK_LSP, the binary installed by
+                :SmolInstallLsp, `lockpick-lsp` on PATH,
                 `<root>/target/{release,debug}/lockpick-lsp`,
                 `lsp.source_dir`/`$LOCKPICK_DIR` target directories.
-  source_dir    (string) lockpick checkout used by :SmolBuildLsp.
+  source_dir    (string) optional local lockpick checkout for :SmolBuildLsp.
+  install_dir   (string) where :SmolInstallLsp installs binaries; default
+                `stdpath('data')/smol`.
+  git           (table) `{ url, branch, tag, rev }` for :SmolInstallLsp.
+                Default url: https://github.com/sievericcardo/lockpick.
   root_markers  (string[], default { 'smol.toml', '.git' })
   capabilities  (table|fun) merged into the default client capabilities.
   settings      (table) LSP settings.

@@ -33,14 +33,24 @@ Neovim support for **SMOL** — the Sensor Modelling and Ontology Language used 
 - A C compiler (`cc`/`clang`/`gcc`) **only** if you want the bundled
   tree-sitter parser. Vim syntax works without one.
 
-Build lockpick's binaries (requires Rust, CMake and libclang):
+You do **not** need a local lockpick checkout. On a fresh machine run:
+
+```vim
+:SmolInstallLsp       " cargo install --git https://github.com/sievericcardo/lockpick
+:SmolInstallParser    " compile the bundled tree-sitter grammar
+:checkhealth smol
+```
+
+`:SmolInstallLsp` needs a Rust toolchain plus lockpick's native dependencies
+(CMake and libclang; see the [lockpick README](https://github.com/sievericcardo/lockpick#system-dependencies)).
+It installs **both** `lockpick-lsp` and `lockpick` into
+`stdpath('data')/smol/bin`, so they do not pollute your `PATH`.
+
+Alternatively, install lockpick yourself and put `lockpick-lsp` on `PATH`:
 
 ```bash
-git clone https://github.com/sievericcardo/lockpick
-cd lockpick
-cargo build --release
-# optional: make them available everywhere
-cp target/release/lockpick target/release/lockpick-lsp ~/.local/bin/
+cargo install --git https://github.com/sievericcardo/lockpick \
+  --bin lockpick-lsp --bin lockpick --locked
 ```
 
 ## Installation
@@ -49,15 +59,9 @@ cp target/release/lockpick target/release/lockpick-lsp ~/.local/bin/
 
 ```lua
 {
-  'sievericcardo/nvim-smol', -- or a local path
+  'sievericcardo/nvim-smol', -- replace with your fork if needed
   ft = 'smol',
   opts = {
-    lsp = {
-      -- omit `cmd` to auto-detect lockpick-lsp on PATH or in
-      -- <root>/target/release/lockpick-lsp
-      cmd = { 'lockpick-lsp' },
-      source_dir = vim.fn.expand('~/Documents/GitHub/lockpick'), -- for :SmolBuildLsp
-    },
     keymaps = {
       check = '<leader>sc',
       check_buffer = '<leader>sB',
@@ -65,6 +69,10 @@ cp target/release/lockpick target/release/lockpick-lsp ~/.local/bin/
   },
 }
 ```
+
+No `lsp.cmd` or `lsp.source_dir` is required: the plugin finds binaries
+installed by `:SmolInstallLsp`, on `PATH`, or in the project's
+`target/release` directory.
 
 ### packer.nvim
 
@@ -92,6 +100,58 @@ Then add this to `init.lua` (optional — defaults work):
 require('smol').setup({})
 ```
 
+Then, inside Neovim:
+
+```vim
+:SmolInstallLsp
+:SmolInstallParser
+```
+
+### Using the plugin from GitHub on another machine
+
+The plugin is self-contained apart from the lockpick binaries, which
+`:SmolInstallLsp` fetches from GitHub. On the new machine:
+
+1. **Publish your plugin repo** (once, on the machine where you developed it):
+
+   ```bash
+   cd /path/to/nvim-smol
+   git remote add origin git@github.com:<you>/nvim-smol.git
+   git push -u origin main
+   ```
+
+2. **Install the plugin from GitHub** with your plugin manager, e.g. the
+   lazy.nvim spec above (or clone it into a `pack/*/start` directory).
+
+3. **Install lockpick from GitHub** — no checkout needed:
+
+   ```vim
+   :SmolInstallLsp
+   ```
+
+   This runs the equivalent of:
+
+   ```bash
+   cargo install --git https://github.com/sievericcardo/lockpick \
+     --bin lockpick-lsp --bin lockpick --locked \
+     --root ~/.local/share/nvim/smol
+   ```
+
+4. **Install the tree-sitter parser** (needs a C compiler):
+
+   ```vim
+   :SmolInstallParser
+   ```
+
+5. **Verify**:
+
+   ```vim
+   :checkhealth smol
+   ```
+
+If you keep a local lockpick checkout during development, `:SmolBuildLsp
+/path/to/lockpick` or `lsp.source_dir` still works, but it is optional.
+
 ## Setup
 
 `setup()` is optional. With no options the plugin:
@@ -107,7 +167,14 @@ require('smol').setup({
     enabled = true,
     auto_start = true,
     cmd = nil,                  -- nil = auto-detect; or { '/path/to/lockpick-lsp' }
-    source_dir = nil,           -- lockpick checkout for :SmolBuildLsp
+    install_dir = nil,          -- default: stdpath('data')/smol
+    source_dir = nil,           -- optional local checkout for :SmolBuildLsp
+    git = {
+      url = 'https://github.com/sievericcardo/lockpick',
+      branch = nil,
+      tag = nil,
+      rev = nil,
+    },
     root_markers = { 'smol.toml', '.git' },
     settings = {},
     init_options = {},
@@ -139,6 +206,9 @@ require('smol').setup({
 
 `lsp.cmd`, `check.cmd`, and `lsp.source_dir` may also be set with the
 `LOCKPICK_LSP`, `LOCKPICK`, and `LOCKPICK_DIR` environment variables.
+`:SmolInstallLsp` installs into `lsp.install_dir` (default
+`stdpath('data')/smol`); override the source repository with `lsp.git.url`,
+`lsp.git.branch`, `lsp.git.tag`, or `lsp.git.rev`.
 
 ## Language server
 
@@ -156,6 +226,8 @@ Useful commands:
 
 | Command | Description |
 | --- | --- |
+| `:SmolInstallLsp [url]` | Install `lockpick-lsp` + `lockpick` from Git (default: the official lockpick repo) |
+| `:SmolBuildLsp [dir]` | `cargo build --release --bin lockpick-lsp` from a local checkout |
 | `:SmolCheck` | Run `lockpick check` and fill the quickfix list |
 | `:SmolCheck!` | Same, then open the quickfix window |
 | `:SmolCheckBuffer` | Project check filtered to the current buffer (loclist) |
@@ -167,7 +239,6 @@ Useful commands:
 | `:SmolHealth` | Open `:checkhealth smol` |
 | `:SmolInstallParser` | Compile the bundled tree-sitter parser |
 | `:SmolTreesitter` | Toggle tree-sitter for the current buffer |
-| `:SmolBuildLsp [dir]` | `cargo build --release --bin lockpick-lsp` |
 
 ### How `:SmolCheck` chooses files
 
@@ -247,8 +318,14 @@ manifest, parser location, query availability, and a compiler for
 
 **`lockpick-lsp not found`**
 
-Put it on your `PATH`, set `lsp.cmd`, or point `lsp.source_dir` /
-`$LOCKPICK_DIR` at a lockpick checkout and run `:SmolBuildLsp`.
+Run `:SmolInstallLsp`. It builds and installs both binaries from
+`lsp.git.url` into `lsp.install_dir` (default `stdpath('data')/smol/bin`), so
+no local checkout is required. You can also put `lockpick-lsp` on `PATH` or
+set `lsp.cmd = { '/path/to/lockpick-lsp' }`.
+
+If the build fails, check that Rust, CMake and libclang are installed (see
+lockpick's system dependencies) and run `:SmolInstallLsp!` again after fixing
+them.
 
 **No parser / tree-sitter does nothing**
 
@@ -305,7 +382,8 @@ make generate
 make ts-test
 
 # Parse the complete lockpick example corpus (must produce zero ERROR nodes)
-make corpus LOCKPICK_DIR=~/Documents/GitHub/lockpick
+git clone --depth 1 https://github.com/sievericcardo/lockpick /tmp/lockpick
+make corpus LOCKPICK_DIR=/tmp/lockpick
 ```
 
 The test suite is `tests/smoke.lua`; it asserts filetype detection, syntax
